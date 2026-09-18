@@ -63,6 +63,8 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._position = None
         self._available = None
         self._media_type = "music"
+        self._muted = None
+        self._source = None
         self._subscribed = []
         self._config_unsubscribe = None
         self._availability_topics = {}
@@ -202,6 +204,8 @@ class MQTTMediaPlayer(MediaPlayerEntity):
             "volume_topic": config.get("state_volume_topic"),
             "albumart_topic": config.get("state_albumart_topic"),
             "mediatype_topic": config.get("state_mediatype_topic"),
+            "mute_topic": config.get("state_mute_topic"),
+            "source_topic": config.get("state_source_topic"),
         }
         self._cmd_topics = {
             "volumeset_topic": config.get("command_volume_topic"),
@@ -216,6 +220,14 @@ class MQTTMediaPlayer(MediaPlayerEntity):
             "previous_topic": config.get("command_previous_topic"),
             "previous_payload": config.get("command_previous_payload", "Previous"),
             "playmedia_topic": config.get("command_playmedia_topic"),
+            "mute_topic": config.get("command_mute_topic"),
+            "mute_on_payload": config.get("command_mute_on_payload", "mute"),
+            "mute_off_payload": config.get("command_mute_off_payload", "unmute"),
+            "seek_topic": config.get("command_seek_topic"),
+            "turnon_topic": config.get("command_turn_on_topic"),
+            "turnon_payload": config.get("command_turn_on_payload", "on"),
+            "turnoff_topic": config.get("command_turn_off_topic"),
+            "turnoff_payload": config.get("command_turn_off_payload", "off"),
         }
 
         # Unsubscribe from subscribed topics
@@ -242,6 +254,10 @@ class MQTTMediaPlayer(MediaPlayerEntity):
             self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_albumart))
         if (check_topic := self._state_topics["mediatype_topic"]) is not None:
             self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_mediatype))
+        if (check_topic := self._state_topics["mute_topic"]) is not None:
+            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_mute))
+        if (check_topic := self._state_topics["source_topic"]) is not None:
+            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_source))
         if (check_topic := self._availability_topics["availability_topic"]) is not None:
             self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_availability))
 
@@ -266,6 +282,14 @@ class MQTTMediaPlayer(MediaPlayerEntity):
             )
         if self._cmd_topics.get("playmedia_topic"):
             features |= MediaPlayerEntityFeature.PLAY_MEDIA
+        if self._cmd_topics.get("mute_topic"):
+            features |= MediaPlayerEntityFeature.VOLUME_MUTE
+        if self._cmd_topics.get("seek_topic"):
+            features |= MediaPlayerEntityFeature.SEEK
+        if self._cmd_topics.get("turnon_topic"):
+            features |= MediaPlayerEntityFeature.TURN_ON
+        if self._cmd_topics.get("turnoff_topic"):
+            features |= MediaPlayerEntityFeature.TURN_OFF
         return features
 
     @property
@@ -289,6 +313,14 @@ class MQTTMediaPlayer(MediaPlayerEntity):
     @property
     def volume_level(self):
         return self._volume
+
+    @property
+    def is_volume_muted(self):
+        return self._muted
+
+    @property
+    def source(self):
+        return self._source
 
     @property
     def media_title(self):
@@ -413,6 +445,24 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._media_type = message.payload if message.payload and message.payload.strip() else "music"
         self.async_write_ha_state()
 
+    async def handle_mute(self, message):
+        """Update the mute state from MQTT."""
+        payload = (message.payload or "").strip().lower()
+        if not payload:
+            self._muted = None
+        elif payload in ("mute", "muted", "on", "true", "1"):
+            self._muted = True
+        elif payload in ("unmute", "unmuted", "off", "false", "0"):
+            self._muted = False
+        else:
+            _LOGGER.debug("Unrecognised mute payload for %s: %s", self.name, message.payload)
+        self.async_write_ha_state()
+
+    async def handle_source(self, message):
+        """Update the current source (e.g. app name) from MQTT."""
+        self._source = message.payload if message.payload and message.payload.strip() else None
+        self.async_write_ha_state()
+
     async def async_media_play(self):
         """Send play command via MQTT."""
         if topic := self._cmd_topics.get("play_topic"):
@@ -432,6 +482,37 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         """Send previous track command via MQTT."""
         if topic := self._cmd_topics.get("previous_topic"):
             await async_publish(self._hass, topic, self._cmd_topics.get("previous_payload", "Previous"))
+
+    async def async_media_play_pause(self):
+        """Toggle play/pause via MQTT."""
+        if topic := self._cmd_topics.get("playpause_topic"):
+            await async_publish(self._hass, topic, self._cmd_topics.get("playpause_payload", "PlayPause"))
+
+    async def async_mute_volume(self, mute):
+        """Mute or unmute via MQTT."""
+        if topic := self._cmd_topics.get("mute_topic"):
+            payload = (
+                self._cmd_topics.get("mute_on_payload", "mute")
+                if mute
+                else self._cmd_topics.get("mute_off_payload", "unmute")
+            )
+            self._muted = bool(mute)
+            await async_publish(self._hass, topic, payload)
+
+    async def async_media_seek(self, position):
+        """Seek to a position (seconds) via MQTT."""
+        if topic := self._cmd_topics.get("seek_topic"):
+            await async_publish(self._hass, topic, str(int(round(float(position)))))
+
+    async def async_turn_on(self):
+        """Turn the player on via MQTT."""
+        if topic := self._cmd_topics.get("turnon_topic"):
+            await async_publish(self._hass, topic, self._cmd_topics.get("turnon_payload", "on"))
+
+    async def async_turn_off(self):
+        """Turn the player off via MQTT."""
+        if topic := self._cmd_topics.get("turnoff_topic"):
+            await async_publish(self._hass, topic, self._cmd_topics.get("turnoff_payload", "off"))
 
     async def async_set_volume_level(self, volume):
         """Set the volume level via MQTT."""

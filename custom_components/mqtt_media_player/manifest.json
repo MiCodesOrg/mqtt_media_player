@@ -1,12 +1,16 @@
 {
   "domain": "mqtt_media_player",
   "name": "MQTT Media Player",
-  "codeowners": ["@bkbilly"],
+  "codeowners": [
+    "@bkbilly"
+  ],
   "config_flow": true,
-  "dependencies": ["mqtt"],
+  "dependencies": [
+    "mqtt"
+  ],
   "documentation": "https://github.com/bkbilly/mqtt_media_player",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/bkbilly/mqtt_media_player/issues",
   "requirements": [],
-  "version": "2026.8.1"
+  "version": "2026.9.0"
 }
