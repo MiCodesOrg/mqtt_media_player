@@ -17,6 +17,8 @@ from homeassistant.components.mqtt import (
 )
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from .config import (
+    discovery_prefix_from_entries,
+    discovery_subscription,
     feature_names,
     parse_availability,
     parse_command_topics,
@@ -41,11 +43,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     if "discovery_topic" in config_entry.data:
         CONFIG_TOPIC = config_entry.data["discovery_topic"]
     else:
-        # For manually added devices, use a wildcard to catch any path structure
-        device_id = config_entry.title
-        # This will match both homeassistant/media_player/my_player/config 
-        # and homeassistant/media_player/lnxlink/my_player/config
-        CONFIG_TOPIC = f"homeassistant/media_player/#"
+        # For manually added devices, subscribe to the configured prefix.
+        CONFIG_TOPIC = discovery_subscription(
+            discovery_prefix_from_entries(hass.config_entries.async_entries("mqtt"))
+        )
         
     unsubscribe_config = await async_subscribe(hass, CONFIG_TOPIC, player.handle_config)
     player.set_config_unsubscribe(unsubscribe_config)

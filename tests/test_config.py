@@ -76,3 +76,28 @@ def test_new_command_keys_enable_their_features():
 
 def test_empty_config_only_browses():
     assert config.feature_names(config.parse_command_topics({})) == {"BROWSE_MEDIA"}
+
+
+def test_discovery_topics_follow_the_prefix():
+    assert config.discovery_subscription() == "homeassistant/media_player/#"
+    assert config.discovery_subscription("hass") == "hass/media_player/#"
+    assert config.discovery_config_topic("dev", "hass") == "hass/media_player/dev/config"
+
+
+def test_discovery_prefix_from_entries():
+    class Entry:
+        def __init__(self, options, data):
+            self.options = options
+            self.data = data
+
+    assert config.discovery_prefix_from_entries([Entry({}, {})]) is None
+    assert (
+        config.discovery_prefix_from_entries(
+            [Entry({}, {}), Entry({"discovery_prefix": "hass"}, {})]
+        )
+        == "hass"
+    )
+    assert (
+        config.discovery_prefix_from_entries([Entry({}, {"discovery_prefix": "custom"})])
+        == "custom"
+    )

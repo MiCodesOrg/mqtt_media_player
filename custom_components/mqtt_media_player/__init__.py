@@ -11,6 +11,11 @@ from homeassistant.components.mqtt import (
 
 from homeassistant.helpers import config_validation as cv
 
+from .config import (
+    discovery_config_topic,
+    discovery_prefix_from_entries,
+    discovery_subscription,
+)
 from .const import DOMAIN
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
@@ -19,16 +24,20 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER]
 
+
+def _get_discovery_prefix(hass: HomeAssistant):
+    """Read the discovery prefix configured in Home Assistant's MQTT integration."""
+    return discovery_prefix_from_entries(hass.config_entries.async_entries("mqtt"))
+
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the integration using YAML (if needed)."""
     if not await async_wait_for_mqtt_client(hass):
         _LOGGER.error("MQTT integration is not available, make sure MQTT is set up correctly")
         return False
 
-    # Subscribe to MQTT discovery topic with wildcard to catch nested paths
-    # This will match both homeassistant/media_player/device/config
-    # and homeassistant/media_player/lnxlink/device/config
-    discovery_topic = "homeassistant/media_player/#"
+    # Subscribe to the discovery topic with a wildcard to catch nested paths,
+    # honouring the discovery prefix configured in the MQTT integration.
+    discovery_topic = discovery_subscription(_get_discovery_prefix(hass))
     
     async def mqtt_discovery_callback(message):
         """Handle MQTT discovery messages."""
@@ -91,8 +100,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         config_topic = entry.data["discovery_topic"]
     else:
         # Construct the config topic for manually added devices
-        # Try to find any matching config topic by publishing to a general pattern
-        config_topic = f"homeassistant/media_player/{entry.title}/config"
+        config_topic = discovery_config_topic(entry.title, _get_discovery_prefix(hass))
     
     if await async_wait_for_mqtt_client(hass):
         try:

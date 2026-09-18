@@ -9,6 +9,26 @@ DEFAULT_MUTE_ON = "mute"
 DEFAULT_MUTE_OFF = "unmute"
 DEFAULT_TURN_ON = "on"
 DEFAULT_TURN_OFF = "off"
+DEFAULT_DISCOVERY_PREFIX = "homeassistant"
+
+
+def discovery_subscription(prefix=None):
+    """Return the wildcard subscription for media_player discovery configs."""
+    return f"{(prefix or DEFAULT_DISCOVERY_PREFIX).strip('/')}/media_player/#"
+
+
+def discovery_config_topic(device_id, prefix=None):
+    """Return the discovery config topic for a given device."""
+    return f"{(prefix or DEFAULT_DISCOVERY_PREFIX).strip('/')}/media_player/{device_id}/config"
+
+
+def discovery_prefix_from_entries(entries):
+    """Return the discovery prefix from MQTT config entries, if configured."""
+    for entry in entries:
+        prefix = entry.options.get("discovery_prefix") or entry.data.get("discovery_prefix")
+        if prefix:
+            return prefix
+    return None
 
 
 def parse_availability(config):
