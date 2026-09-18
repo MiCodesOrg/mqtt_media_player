@@ -9,7 +9,11 @@ from homeassistant.components.mqtt import (
     async_wait_for_mqtt_client,
 )
 
+from homeassistant.helpers import config_validation as cv
+
 from .const import DOMAIN
+
+CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
