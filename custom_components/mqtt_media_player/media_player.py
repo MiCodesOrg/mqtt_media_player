@@ -65,6 +65,7 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._media_type = "music"
         self._muted = None
         self._source = None
+        self._removing = False
         self._subscribed = []
         self._config_unsubscribe = None
         self._availability_topics = {}
@@ -160,9 +161,16 @@ class MQTTMediaPlayer(MediaPlayerEntity):
 
     async def handle_config(self, message):
         """Handle incoming configuration from MQTT."""
-        # Handle empty payload (device removal)
+        # Empty payload means the device is removed: drop the entity and its config entry.
         if not message.payload or message.payload.strip() == "":
-            _LOGGER.info("Received empty config payload - device removed")
+            if self._removing:
+                return
+            self._removing = True
+            entry_id = self._config_entry.entry_id
+            if self.hass.config_entries.async_get_entry(entry_id) is None:
+                return
+            _LOGGER.info("Received empty config payload - removing %s", self._config_entry.title)
+            self.hass.async_create_task(self.hass.config_entries.async_remove(entry_id))
             return
         
         try:

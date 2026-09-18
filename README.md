@@ -116,6 +116,10 @@ The `state_state_topic` should publish one of these values:
 
 Album art should be published as a base64-encoded image (JPEG recommended) to the `state_albumart_topic`.
 
+### Removing a device
+
+Publishing an **empty retained payload** to the discovery topic removes the device: its entity and config entry are deleted from Home Assistant. Re-publishing the discovery config brings it back.
+
 ### Mute, Seek, Power and Source
 
 All of these are optional; the entity only advertises the matching feature when the topic is configured.
