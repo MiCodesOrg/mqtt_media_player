@@ -2,15 +2,16 @@
   "domain": "mqtt_media_player",
   "name": "MQTT Media Player",
   "codeowners": [
-    "@bkbilly"
+    "@bkbilly",
+    "@Miloune"
   ],
   "config_flow": true,
   "dependencies": [
     "mqtt"
   ],
-  "documentation": "https://github.com/bkbilly/mqtt_media_player",
+  "documentation": "https://github.com/MiCodesOrg/mqtt_media_player",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/bkbilly/mqtt_media_player/issues",
+  "issue_tracker": "https://github.com/MiCodesOrg/mqtt_media_player/issues",
   "requirements": [],
-  "version": "2026.9.0"
+  "version": "2026.9.1"
 }

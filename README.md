@@ -120,6 +120,17 @@ Album art should be published as a base64-encoded image (JPEG recommended) to th
 
 Publishing an **empty retained payload** to the discovery topic removes the device: its entity and config entry are deleted from Home Assistant. Re-publishing the discovery config brings it back.
 
+## Development
+
+The discovery payload parsing lives in `custom_components/mqtt_media_player/config.py`, free of Home Assistant imports so it can be unit-tested directly.
+
+```bash
+python -m pip install pytest
+python -m pytest -q
+```
+
+CI runs these tests plus `hassfest` and the HACS validation on every push.
+
 ### Mute, Seek, Power and Source
 
 All of these are optional; the entity only advertises the matching feature when the topic is configured.

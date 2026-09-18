@@ -16,6 +16,12 @@ from homeassistant.components.mqtt import (
     async_wait_for_mqtt_client,
 )
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from .config import (
+    feature_names,
+    parse_availability,
+    parse_command_topics,
+    parse_state_topics,
+)
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -197,46 +203,9 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._update_device_binding()
 
         # Set the MQTT topics from the configuration
-        self._availability_topics = {
-            "availability_topic": config.get("availability", {}).get("topic"),
-            "available": config.get("availability", {}).get("payload_available", "online"),
-            "not_available": config.get("availability", {}).get("payload_not_available", "offline"),
-        }
-        self._state_topics = {
-            "state_topic": config.get("state_state_topic"),
-            "title_topic": config.get("state_title_topic"),
-            "artist_topic": config.get("state_artist_topic"),
-            "album_topic": config.get("state_album_topic"),
-            "duration_topic": config.get("state_duration_topic"),
-            "position_topic": config.get("state_position_topic"),
-            "volume_topic": config.get("state_volume_topic"),
-            "albumart_topic": config.get("state_albumart_topic"),
-            "mediatype_topic": config.get("state_mediatype_topic"),
-            "mute_topic": config.get("state_mute_topic"),
-            "source_topic": config.get("state_source_topic"),
-        }
-        self._cmd_topics = {
-            "volumeset_topic": config.get("command_volume_topic"),
-            "play_topic": config.get("command_play_topic"),
-            "play_payload": config.get("command_play_payload", "Play"),
-            "pause_topic": config.get("command_pause_topic"),
-            "pause_payload": config.get("command_pause_payload", "Pause"),
-            "playpause_topic": config.get("command_playpause_topic"),
-            "playpause_payload": config.get("command_playpause_payload", "PlayPause"),
-            "next_topic": config.get("command_next_topic"),
-            "next_payload": config.get("command_next_payload", "Next"),
-            "previous_topic": config.get("command_previous_topic"),
-            "previous_payload": config.get("command_previous_payload", "Previous"),
-            "playmedia_topic": config.get("command_playmedia_topic"),
-            "mute_topic": config.get("command_mute_topic"),
-            "mute_on_payload": config.get("command_mute_on_payload", "mute"),
-            "mute_off_payload": config.get("command_mute_off_payload", "unmute"),
-            "seek_topic": config.get("command_seek_topic"),
-            "turnon_topic": config.get("command_turn_on_topic"),
-            "turnon_payload": config.get("command_turn_on_payload", "on"),
-            "turnoff_topic": config.get("command_turn_off_topic"),
-            "turnoff_payload": config.get("command_turn_off_payload", "off"),
-        }
+        self._availability_topics = parse_availability(config)
+        self._state_topics = parse_state_topics(config)
+        self._cmd_topics = parse_command_topics(config)
 
         # Unsubscribe from subscribed topics
         for subscription in self._subscribed:
@@ -274,30 +243,9 @@ class MQTTMediaPlayer(MediaPlayerEntity):
     @property
     def supported_features(self):
         """Return supported features based on configured command topics."""
-        features = MediaPlayerEntityFeature.BROWSE_MEDIA
-        if self._cmd_topics.get("play_topic") or self._cmd_topics.get("playpause_topic"):
-            features |= MediaPlayerEntityFeature.PLAY
-        if self._cmd_topics.get("pause_topic") or self._cmd_topics.get("playpause_topic"):
-            features |= MediaPlayerEntityFeature.PAUSE
-        if self._cmd_topics.get("next_topic"):
-            features |= MediaPlayerEntityFeature.NEXT_TRACK
-        if self._cmd_topics.get("previous_topic"):
-            features |= MediaPlayerEntityFeature.PREVIOUS_TRACK
-        if self._cmd_topics.get("volumeset_topic"):
-            features |= (
-                MediaPlayerEntityFeature.VOLUME_SET
-                | MediaPlayerEntityFeature.VOLUME_STEP
-            )
-        if self._cmd_topics.get("playmedia_topic"):
-            features |= MediaPlayerEntityFeature.PLAY_MEDIA
-        if self._cmd_topics.get("mute_topic"):
-            features |= MediaPlayerEntityFeature.VOLUME_MUTE
-        if self._cmd_topics.get("seek_topic"):
-            features |= MediaPlayerEntityFeature.SEEK
-        if self._cmd_topics.get("turnon_topic"):
-            features |= MediaPlayerEntityFeature.TURN_ON
-        if self._cmd_topics.get("turnoff_topic"):
-            features |= MediaPlayerEntityFeature.TURN_OFF
+        features = MediaPlayerEntityFeature(0)
+        for name in feature_names(self._cmd_topics):
+            features |= getattr(MediaPlayerEntityFeature, name)
         return features
 
     @property
