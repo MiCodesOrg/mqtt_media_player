@@ -1,8 +1,6 @@
 import json
-import base64
-import binascii
-import hashlib
 import logging
+from functools import partial
 from homeassistant.util.dt import utcnow
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
@@ -25,6 +23,7 @@ from .config import (
     parse_state_topics,
 )
 from .const import DOMAIN
+from .state import MediaPlayerState, Role
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,18 +59,7 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._hass = hass
         self._config_entry = config_entry
         self._name = None
-        self._state = None
-        self._volume = 0.0
-        self._media_title = None
-        self._media_artist = None
-        self._media_album = None
-        self._album_art = None
-        self._duration = None
-        self._position = None
-        self._available = None
-        self._media_type = "music"
-        self._muted = None
-        self._source = None
+        self._model = MediaPlayerState(now=utcnow)
         self._removing = False
         self._subscribed = []
         self._config_unsubscribe = None
@@ -207,37 +195,38 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         self._availability_topics = parse_availability(config)
         self._state_topics = parse_state_topics(config)
         self._cmd_topics = parse_command_topics(config)
+        self._model.set_availability_payloads(
+            self._availability_topics["available"],
+            self._availability_topics["not_available"],
+        )
 
         # Unsubscribe from subscribed topics
         for subscription in self._subscribed:
             subscription()
         self._subscribed = []
 
-        # Subscribe to relevant state topics
-        if (check_topic := self._state_topics["state_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_state))
-        if (check_topic := self._state_topics["title_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_title))
-        if (check_topic := self._state_topics["artist_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_artist))
-        if (check_topic := self._state_topics["album_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_album))
-        if (check_topic := self._state_topics["duration_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_duration))
-        if (check_topic := self._state_topics["position_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_position))
-        if (check_topic := self._state_topics["volume_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_volume))
-        if (check_topic := self._state_topics["albumart_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_albumart))
-        if (check_topic := self._state_topics["mediatype_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_mediatype))
-        if (check_topic := self._state_topics["mute_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_mute))
-        if (check_topic := self._state_topics["source_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_source))
+        # Subscribe every configured state topic to the matching role
+        for key, role in (
+            ("state_topic", Role.STATE),
+            ("title_topic", Role.TITLE),
+            ("artist_topic", Role.ARTIST),
+            ("album_topic", Role.ALBUM),
+            ("duration_topic", Role.DURATION),
+            ("position_topic", Role.POSITION),
+            ("volume_topic", Role.VOLUME),
+            ("albumart_topic", Role.ALBUMART),
+            ("mediatype_topic", Role.MEDIATYPE),
+            ("mute_topic", Role.MUTE),
+            ("source_topic", Role.SOURCE),
+        ):
+            if (check_topic := self._state_topics[key]) is not None:
+                self._subscribed.append(
+                    await async_subscribe(self._hass, check_topic, partial(self._handle, role))
+                )
         if (check_topic := self._availability_topics["availability_topic"]) is not None:
-            self._subscribed.append(await async_subscribe(self._hass, check_topic, self.handle_availability))
+            self._subscribed.append(
+                await async_subscribe(self._hass, check_topic, partial(self._handle, Role.AVAILABILITY))
+            )
 
         self.async_write_ha_state()
 
@@ -263,161 +252,65 @@ class MQTTMediaPlayer(MediaPlayerEntity):
 
     @property
     def state(self):
-        if self._available is False:
+        if self._model.available is False:
             return "unavailable"
-        return self._state
+        return self._model.state
 
     @property
     def volume_level(self):
-        return self._volume
+        return self._model.volume
 
     @property
     def is_volume_muted(self):
-        return self._muted
+        return self._model.muted
 
     @property
     def source(self):
-        return self._source
+        return self._model.source
 
     @property
     def media_title(self):
-        return self._media_title
+        return self._model.title
 
     @property
     def media_artist(self):
-        return self._media_artist
+        return self._model.artist
 
     @property
     def media_album_name(self):
-        return self._media_album
+        return self._model.album
 
     @property
     def media_content_type(self):
         """Content type of current playing media."""
-        return self._media_type
+        return self._model.media_type
 
     @property
     def media_position(self):
         """Position of player in percentage."""
-        return self._position
+        return self._model.position
 
     @property
     def media_duration(self):
         """Duration of current playing media in percentage."""
-        return self._duration
+        return self._model.duration
 
     @property
     def media_image_hash(self):
         """Hash value for media image."""
-        if self._album_art:
-            return hashlib.md5(self._album_art).hexdigest()[:5]       
-        return None
+        return self._model.image_hash
 
     async def async_get_media_image(self):
         """Fetch media image of current playing image."""
-        if self._album_art:
-            return (self._album_art, "image/jpeg")
+        if self._model.album_art:
+            return (self._model.album_art, "image/jpeg")
         return None, None
 
-    async def handle_availability(self, message):
-        """Update the media player availability status."""
-        if message.payload == self._availability_topics.get("available"):
-            self._available = True
-        elif message.payload == self._availability_topics.get("not_available"):
-            self._available = False
-        self.async_write_ha_state()
-
-    async def handle_state(self, message):
-        """Update the player state based on the MQTT state topic."""
-        _LOGGER.debug("Changed state for %s: %s", self.name, message.payload)
-        if message.payload and message.payload.strip():
-            self._state = message.payload.lower()
-        else:
-            self._state = None
-        self.async_write_ha_state()
-
-    async def handle_title(self, message):
-        """Update the media title based on the MQTT title topic."""
-        self._media_title = message.payload if message.payload and message.payload.strip() else None
-        self.async_write_ha_state()
-
-    async def handle_artist(self, message):
-        """Update the media artist based on the MQTT artist topic."""
-        self._media_artist = message.payload if message.payload and message.payload.strip() else None
-        self.async_write_ha_state()
-
-    async def handle_album(self, message):
-        """Update the media album based on the MQTT album topic."""
-        self._media_album = message.payload if message.payload and message.payload.strip() else None
-        self.async_write_ha_state()
-
-    async def handle_duration(self, message):
-        """Update the media duration based on the MQTT duration topic."""
-        if not message.payload or not message.payload.strip():
-            self._duration = None
-        else:
-            try:
-                self._duration = int(message.payload)
-            except (ValueError, TypeError):
-                self._duration = None
-        self.async_write_ha_state()
-
-    async def handle_position(self, message):
-        """Update the media position based on the MQTT position topic."""
-        if not message.payload or not message.payload.strip():
-            self._position = None
-        else:
-            try:
-                self._position = int(message.payload)
-                self._attr_media_position_updated_at = utcnow()
-            except (ValueError, TypeError):
-                self._position = None
-        self.async_write_ha_state()
-
-    async def handle_volume(self, message):
-        """Update the volume based on the MQTT volume topic."""
-        if not message.payload or not message.payload.strip():
-            self._volume = 0.0
-        else:
-            try:
-                self._volume = float(message.payload)
-            except (ValueError, TypeError):
-                _LOGGER.debug("Invalid volume payload received for %s: %s", self.name, message.payload)
-        self.async_write_ha_state()
-
-    async def handle_albumart(self, message):
-        """Update the album art based on the MQTT album art topic."""
-        if not message.payload or not message.payload.strip():
-            self._album_art = None
-        else:
-            try:
-                self._album_art = base64.b64decode(message.payload.replace("\n", ""))
-            except (binascii.Error, TypeError, ValueError) as e:
-                _LOGGER.debug("Failed to decode album art for %s: %s", self.name, e)
-                self._album_art = None
-        self.async_write_ha_state()
-
-    async def handle_mediatype(self, message):
-        """Update the media media_type based on the MQTT media_type topic."""
-        self._media_type = message.payload if message.payload and message.payload.strip() else "music"
-        self.async_write_ha_state()
-
-    async def handle_mute(self, message):
-        """Update the mute state from MQTT."""
-        payload = (message.payload or "").strip().lower()
-        if not payload:
-            self._muted = None
-        elif payload in ("mute", "muted", "on", "true", "1"):
-            self._muted = True
-        elif payload in ("unmute", "unmuted", "off", "false", "0"):
-            self._muted = False
-        else:
-            _LOGGER.debug("Unrecognised mute payload for %s: %s", self.name, message.payload)
-        self.async_write_ha_state()
-
-    async def handle_source(self, message):
-        """Update the current source (e.g. app name) from MQTT."""
-        self._source = message.payload if message.payload and message.payload.strip() else None
+    async def _handle(self, role, message):
+        """Apply an incoming payload for a role and publish the new state."""
+        self._model.apply(role, message.payload)
+        if role is Role.POSITION and self._model.position is not None:
+            self._attr_media_position_updated_at = self._model.position_updated_at
         self.async_write_ha_state()
 
     async def async_media_play(self):
@@ -453,7 +346,7 @@ class MQTTMediaPlayer(MediaPlayerEntity):
                 if mute
                 else self._cmd_topics.get("mute_off_payload", "unmute")
             )
-            self._muted = bool(mute)
+            self._model.set_muted(mute)
             await async_publish(self._hass, topic, payload)
 
     async def async_media_seek(self, position):
@@ -474,8 +367,8 @@ class MQTTMediaPlayer(MediaPlayerEntity):
     async def async_set_volume_level(self, volume):
         """Set the volume level via MQTT."""
         if topic := self._cmd_topics.get("volumeset_topic"):
-            self._volume = round(float(volume), 2)
-            await async_publish(self._hass, topic, self._volume)
+            self._model.set_volume(volume)
+            await async_publish(self._hass, topic, self._model.volume)
 
     async def async_play_media(self, media_type, media_id, **kwargs):
         """Sends media to play."""
