@@ -9,7 +9,7 @@
       }
     },
     "abort": {
-      "mqtt_discovery_only": "MQTT Media Players are automatically discovered when online and publishing to MQTT."
+      "mqtt_discovery_only": "This integration is discovery-only. Add `mqtt_media_player:` to configuration.yaml and restart Home Assistant, then keep a player online and publishing to MQTT: it will be discovered automatically."
     }
   }
 }

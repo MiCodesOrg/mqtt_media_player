@@ -20,6 +20,18 @@ Easiest install is via [HACS](https://hacs.xyz/):
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=MiCodesOrg&repository=mqtt_media_player&category=integration)
 
+Then **enable the integration once** in `configuration.yaml` and restart Home Assistant.
+This integration is **discovery-only** — it subscribes to the MQTT discovery topic at
+startup, so without this line no device is ever discovered:
+
+```yaml
+mqtt_media_player:
+```
+
+> There is nothing to add through *Settings → Devices & Services*; the "Add integration"
+> dialog only shows the discovery notice. Devices appear automatically once a player is
+> online and publishing.
+
 ## Configuration
 
 ### MQTT Discovery Message
