@@ -2,14 +2,12 @@
   "config": {
     "step": {
       "user": {
-        "title": "MQTT Media Player"
+        "title": "MQTT Media Player",
+        "description": "Set this up once. It watches the MQTT discovery topic, so every player that comes online and publishes to MQTT is then added automatically. No configuration.yaml change is needed."
       },
       "mqtt": {
         "title": "MQTT Media Player"
       }
-    },
-    "abort": {
-      "mqtt_discovery_only": "This integration is discovery-only. Add `mqtt_media_player:` to configuration.yaml and restart Home Assistant, then keep a player online and publishing to MQTT: it will be discovered automatically."
     }
   }
 }
