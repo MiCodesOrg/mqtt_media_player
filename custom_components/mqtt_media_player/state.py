@@ -30,6 +30,11 @@ class Role(Enum):
     MEDIATYPE = "mediatype"
     MUTE = "mute"
     SOURCE = "source"
+    SUMMARY = "summary"
+    SEASON = "season"
+    EPISODE = "episode"
+    SERIES = "series"
+    YEAR = "year"
     AVAILABILITY = "availability"
 
 
@@ -59,6 +64,11 @@ class MediaPlayerState:
         self.media_type = "music"
         self.muted = None
         self.source = None
+        self.summary = None
+        self.season = None
+        self.episode = None
+        self.series_title = None
+        self.year = None
 
     def set_availability_payloads(self, available_payload, not_available_payload):
         self._available_payload = available_payload
@@ -89,6 +99,16 @@ class MediaPlayerState:
             self.album = _text_or_none(payload)
         elif role is Role.SOURCE:
             self.source = _text_or_none(payload)
+        elif role is Role.SUMMARY:
+            self.summary = _text_or_none(payload)
+        elif role is Role.SEASON:
+            self.season = _text_or_none(payload)
+        elif role is Role.EPISODE:
+            self.episode = _text_or_none(payload)
+        elif role is Role.SERIES:
+            self.series_title = _text_or_none(payload)
+        elif role is Role.YEAR:
+            self.year = _text_or_none(payload)
         elif role is Role.DURATION:
             self.duration = _int_or_none(payload)
         elif role is Role.POSITION:

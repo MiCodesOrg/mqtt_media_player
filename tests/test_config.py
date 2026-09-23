@@ -21,6 +21,11 @@ SAMPLE = {
     "state_state_topic": "p/state",
     "state_mute_topic": "p/mute",
     "state_source_topic": "p/source",
+    "state_summary_topic": "p/summary",
+    "state_season_topic": "p/season",
+    "state_episode_topic": "p/episode",
+    "state_series_topic": "p/series",
+    "state_year_topic": "p/year",
     "command_play_topic": "p/cmd/play",
     "command_pause_topic": "p/cmd/pause",
     "command_playpause_topic": "p/cmd/playpause",
@@ -47,6 +52,17 @@ def test_state_topics_include_mute_and_source():
     assert state["state_topic"] == "p/state"
     assert state["mute_topic"] == "p/mute"
     assert state["source_topic"] == "p/source"
+
+
+def test_state_topics_include_the_tv_details():
+    state = config.parse_state_topics(SAMPLE)
+    assert state["summary_topic"] == "p/summary"
+    assert state["season_topic"] == "p/season"
+    assert state["episode_topic"] == "p/episode"
+    assert state["series_topic"] == "p/series"
+    assert state["year_topic"] == "p/year"
+
+    assert config.parse_state_topics({})["season_topic"] is None
 
 
 def test_command_payload_defaults():

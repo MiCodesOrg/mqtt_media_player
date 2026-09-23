@@ -47,6 +47,25 @@ def test_text_roles_set_and_clear():
     assert state.title is None
 
 
+def test_tv_details_roles_set_and_clear():
+    state = _state()
+    state.apply(Role.SUMMARY, "Un résumé")
+    state.apply(Role.SEASON, "4")
+    state.apply(Role.EPISODE, "2")
+    state.apply(Role.SERIES, "La Chronique des Bridgerton")
+    state.apply(Role.YEAR, "2024")
+    assert (state.summary, state.season, state.episode, state.series_title, state.year) == (
+        "Un résumé",
+        "4",
+        "2",
+        "La Chronique des Bridgerton",
+        "2024",
+    )
+
+    state.apply(Role.EPISODE, "")
+    assert state.episode is None
+
+
 def test_duration_parses_ints_and_clears():
     state = _state()
     state.apply(Role.DURATION, "240")

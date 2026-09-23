@@ -14,6 +14,7 @@ Easiest way to add a custom MQTT Media Player with full auto-discovery support.
 - ⏩ **Seek** - Seek to an absolute position (seconds)
 - ⏻ **Power** - Turn on / turn off commands
 - 🧩 **Source** - Report the current source (e.g. app name)
+- 📺 **TV details** - Summary, season, episode, series title and year
 
 ## Installation
 Easiest install is via [HACS](https://hacs.xyz/):
@@ -73,7 +74,12 @@ Publish a JSON configuration message to `homeassistant/media_player/{device_id}/
   "command_turn_on_payload": "on",
   "command_turn_off_topic": "myplayer/turn_off",
   "command_turn_off_payload": "off",
-  "state_source_topic": "myplayer/source"
+  "state_source_topic": "myplayer/source",
+  "state_summary_topic": "myplayer/summary",
+  "state_season_topic": "myplayer/season",
+  "state_episode_topic": "myplayer/episode",
+  "state_series_topic": "myplayer/series",
+  "state_year_topic": "myplayer/year"
 }
 ```
 
@@ -111,6 +117,11 @@ Publish a JSON configuration message to `homeassistant/media_player/{device_id}/
 | command_turn_on_topic    | Turn on                                                  | myplayer/turn_on    | on        |
 | command_turn_off_topic   | Turn off                                                 | myplayer/turn_off   | off       |
 | state_source_topic       | Current source (e.g. app name)                           | myplayer/source     |           |
+| state_summary_topic      | Summary / plot (`media_summary` attribute)               | myplayer/summary    |           |
+| state_season_topic       | TV season (`media_season` attribute)                     | myplayer/season     |           |
+| state_episode_topic      | TV episode (`media_episode` attribute)                   | myplayer/episode    |           |
+| state_series_topic       | TV series title (`media_series_title` attribute)         | myplayer/series     |           |
+| state_year_topic         | Release year (`media_year` attribute)                    | myplayer/year       |           |
 
 ### State Values
 
@@ -149,3 +160,13 @@ All of these are optional; the entity only advertises the matching feature when 
 - **Power**: `command_turn_on_topic` / `command_turn_off_topic` receive their configured payloads.
 - **Source**: `state_source_topic` is shown as the entity `source` attribute (read-only), useful for an app/package name.
 - **Play/Pause**: Home Assistant drives `play` and `pause` separately (there is no `PLAY_PAUSE` feature in current Home Assistant); `command_playpause_topic` is kept for the optional `async_media_play_pause` path.
+
+### TV details
+
+All five are optional and cleared by an empty payload:
+
+- `state_summary_topic` → `media_summary` attribute (plot / description).
+- `state_season_topic` → standard `media_season` attribute.
+- `state_episode_topic` → standard `media_episode` attribute.
+- `state_series_topic` → standard `media_series_title` attribute.
+- `state_year_topic` → `media_year` attribute.

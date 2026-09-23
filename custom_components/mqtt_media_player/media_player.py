@@ -218,6 +218,11 @@ class MQTTMediaPlayer(MediaPlayerEntity):
             ("mediatype_topic", Role.MEDIATYPE),
             ("mute_topic", Role.MUTE),
             ("source_topic", Role.SOURCE),
+            ("summary_topic", Role.SUMMARY),
+            ("season_topic", Role.SEASON),
+            ("episode_topic", Role.EPISODE),
+            ("series_topic", Role.SERIES),
+            ("year_topic", Role.YEAR),
         ):
             if (check_topic := self._state_topics[key]) is not None:
                 self._subscribed.append(
@@ -281,6 +286,18 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         return self._model.album
 
     @property
+    def media_series_title(self):
+        return self._model.series_title
+
+    @property
+    def media_season(self):
+        return self._model.season
+
+    @property
+    def media_episode(self):
+        return self._model.episode
+
+    @property
     def media_content_type(self):
         """Content type of current playing media."""
         return self._model.media_type
@@ -305,6 +322,16 @@ class MQTTMediaPlayer(MediaPlayerEntity):
         if self._model.album_art:
             return (self._model.album_art, "image/jpeg")
         return None, None
+
+    @property
+    def extra_state_attributes(self):
+        """Expose the fields Home Assistant has no dedicated attribute for."""
+        attributes = dict(super().extra_state_attributes or {})
+        if self._model.summary is not None:
+            attributes["media_summary"] = self._model.summary
+        if self._model.year is not None:
+            attributes["media_year"] = self._model.year
+        return attributes or None
 
     async def _handle(self, role, message):
         """Apply an incoming payload for a role and publish the new state."""

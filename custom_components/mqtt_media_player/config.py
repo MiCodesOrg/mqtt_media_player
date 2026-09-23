@@ -55,6 +55,11 @@ def parse_state_topics(config):
         "mediatype_topic": config.get("state_mediatype_topic"),
         "mute_topic": config.get("state_mute_topic"),
         "source_topic": config.get("state_source_topic"),
+        "summary_topic": config.get("state_summary_topic"),
+        "season_topic": config.get("state_season_topic"),
+        "episode_topic": config.get("state_episode_topic"),
+        "series_topic": config.get("state_series_topic"),
+        "year_topic": config.get("state_year_topic"),
     }
 
 
